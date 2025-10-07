@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  password  String
+  address   String
+  phone     String
+  createdAt DateTime  @default(now())
+  listings  Listing[] @relation("Owner")
+  rentals   Rental[]  @relation("Renter")
+  Review    Review[]
+}
+
+model Listing {
+  id             Int               @id @default(autoincrement())
+  owner          User              @relation("Owner", fields: [ownerId], references: [id])
+  ownerId        Int
+  name           String
+  description    String
+  categories     ListingCategory[]
+  pricePerDay    Float
+  advancePayment Float
+  available      DateTime
+  review         String
+  createdAt      DateTime          @default(now())
+  rentals        Rental[]
+  reviews        Review[]
+  media          Media[]
+}
+
+model Rental {
+  id         Int          @id @default(autoincrement())
+  listing    Listing      @relation(fields: [listingId], references: [id])
+  listingId  Int
+  renter     User         @relation("Renter", fields: [renterId], references: [id])
+  renterId   Int
+  startDate  DateTime
+  endDate    DateTime
+  totalPrice Float
+  status     RentalStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+}
+
+model Review {
+  id         Int      @id @default(autoincrement())
+  listing    Listing  @relation(fields: [listingId], references: [id])
+  listingId  Int
+  reviewer   User     @relation(fields: [reviewerId], references: [id])
+  reviewerId Int
+  rating     Int      @db.SmallInt
+  comment    String?
+  createdAt  DateTime @default(now())
+}
+
+model Media {
+  id        Int       @id @default(autoincrement())
+  listing   Listing   @relation(fields: [listingId], references: [id])
+  listingId Int
+  url       String
+  type      MediaType
+  createdAt DateTime  @default(now())
+}
+
+model ListingCategory {
+  listing   Listing      @relation(fields: [listingId], references: [id])
+  listingId Int
+  category  CategoryType
+
+  @@id([listingId, category])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum RentalStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum CategoryType {
+  ELECTRONICS
+  TOOLS
+  SPORTS
+  OUTDOORS
+  CLOTHING
+  BOOKS
+  MUSIC
+  GAMES
+  TOYS
+  // FURNITURE
+  // VEHICLES
+  // REAL_ESTATE
+  // PETS
+  // SERVICES
+}

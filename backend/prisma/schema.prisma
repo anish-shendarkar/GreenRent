@@ -23,7 +23,7 @@ model User {
   createdAt DateTime  @default(now())
   listings  Listing[] @relation("Owner")
   rentals   Rental[]  @relation("Renter")
-  Review    Review[]
+  reviews   Review[]
 }
 
 model Listing {
@@ -36,7 +36,6 @@ model Listing {
   pricePerDay    Float
   advancePayment Float
   available      DateTime
-  review         String
   createdAt      DateTime          @default(now())
   rentals        Rental[]
   reviews        Review[]

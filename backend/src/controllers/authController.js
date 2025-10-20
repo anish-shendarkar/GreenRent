@@ -6,6 +6,8 @@ const prisma = new PrismaClient();
 
 export const signup = async (req, res) => {
   try {
+    const existingUser = await prisma.user.findUnique({ where: { email: req.body.email } });
+    if (existingUser) return res.status(400).json({ message: "User already exists" });
     const { email, password, name, address, phone } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 

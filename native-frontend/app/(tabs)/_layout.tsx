@@ -5,14 +5,20 @@ import { Image, ImageBackground } from 'expo-image'
 import { icons } from '@/constants/icons'
 
 const TabIcon = ({ focused, icon, title }: any) => (
-    <View className='flex flex-row w-full flex-1 min-w-[112px] min-h-16 mt-9 justify-center items-center rounded-full overflow-hidden'>
+    <View className='flex flex-col w-full flex-1 min-w-[112px] min-h-16 mt-9 justify-center items-center rounded-full overflow-hidden'>
         <Image
             source={icon}
             tintColor={focused ? '#1651FF' : '#A0A0A0'}
-            style={{ width: 20, height: 20, marginRight: 10 }}
-            
+            style={{ width: 20, height: 20, marginBottom: 4 }}
+
         />
-        <Text style={{ color: focused ? '#1651FF' : '#A0A0A0', fontSize: 12, marginTop: 2 }}>
+        <Text
+            style={{
+                color: focused ? '#1651FF' : '#A0A0A0',
+                fontSize: 12,
+                marginTop: 2,
+                textAlign: 'center',
+            }}>
             {title}
         </Text>
     </View>
@@ -31,7 +37,7 @@ const _layout = () => {
                     alignItems: 'center'
                 },
                 tabBarStyle: {
-                    backgroundColor: '#1E1E1E',
+                    backgroundColor: '#121212',
                     borderRadius: 50,
                     marginHorizontal: 20,
                     marginBottom: 36,

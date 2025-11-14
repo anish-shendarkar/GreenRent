@@ -35,7 +35,8 @@ model Listing {
   categories     ListingCategory[]
   pricePerDay    Float
   advancePayment Float
-  available      DateTime
+  available      Boolean           @default(true)
+  availableFrom  DateTime          @default(now())
   createdAt      DateTime          @default(now())
   rentals        Rental[]
   reviews        Review[]

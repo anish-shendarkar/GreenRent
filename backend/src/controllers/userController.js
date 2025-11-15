@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import path from "path";
+import redis from "../config/redis.js";
 
 const prisma = new PrismaClient();
 
@@ -62,10 +63,15 @@ export const updateUserPhone = async (req, res) => {
 
 export const getUserListings = async (req, res) => {
     try {
+        const cached = await redis.get(`user:${req.user.id}:listings`);
+        if (cached) {
+            return res.json(JSON.parse(cached));
+        }
         const listings = await prisma.listing.findMany({
-            where: { userId: req.user.id },
+            where: { ownerId: req.user.id },
             include: { media: true },
         });
+        await redis.setEx(`user:${req.user.id}:listings`, 600, JSON.stringify(listings));
         res.json(listings);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -75,17 +81,23 @@ export const getUserListings = async (req, res) => {
 export const getListingById = async (req, res) => {
     try {
         const { listingId } = req.params;
+        const cached = await redis.get(`listing:${listingId}`);
+        if (cached) {
+            return res.json(JSON.parse(cached));
+        }
         const listing = await prisma.listing.findUnique({
-            where: { id: listingId },
+            where: { id: Number(listingId) },
             include: { media: true },
         });
         if (!listing) return res.status(404).json({ message: "Listing not found" });
         if (!listing.available && listing.availableFrom <= new Date()) {
             await prisma.listing.update({
-                where: { id: listingId },
+                where: { id: Number(listingId) },
                 data: { available: true, availableFrom: new Date() },
             });
         }
+        await redis.setEx(`listing:${listingId}`, 600, JSON.stringify(listing));
+
         res.json(listing);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -185,9 +197,10 @@ export const deleteListing = async (req, res) => {
 
 export const rentListing = async (req, res) => {
     try {
-        const { listingId, rentalDays } = req.body;
+        const { listingId } = req.params;
+        const { rentalDays } = req.body;
 
-        const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+        const listing = await prisma.listing.findUnique({ where: { id: Number(listingId) } });
         if (!listing) return res.status(404).json({ message: "Listing not found" });
 
         if (!listing.available) return res.status(400).json({ message: `Item not available until ${listing.availableFrom}` });
@@ -198,7 +211,7 @@ export const rentListing = async (req, res) => {
 
         const rental = await prisma.rental.create({
             data: {
-                listingId: listingId,
+                listingId: Number(listingId),
                 renterId: req.user.id,
                 startDate: now,
                 endDate: rentalEndDate,
@@ -207,7 +220,7 @@ export const rentListing = async (req, res) => {
         });
 
         await prisma.listing.update({
-            where: { id: listingId },
+            where: { id: Number(listingId) },
             data: { available: false, availableFrom: rentalEndDate },
         });
 
@@ -219,11 +232,49 @@ export const rentListing = async (req, res) => {
 
 export const getUserRentals = async (req, res) => {
     try {
+        const cached = await redis.get(`user:${req.user.id}:rentals`);
+        if (cached) {
+            return res.json(JSON.parse(cached));
+        }
         const rentals = await prisma.rental.findMany({
             where: { renterId: req.user.id },
             include: { listing: true },
         });
+        await redis.set(`user:${req.user.id}:rentals`, JSON.stringify(rentals));
         res.json(rentals);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const acceptRentalRequest = async (req, res) => {
+    try {
+        const { rentalId } = req.params;
+        const rental = await prisma.rental.findUnique({
+            where: {
+                id: Number(rentalId),
+                status: "PENDING"
+            },
+            include: { listing: true }
+        });
+        if (!rental) return res.status(404).json({ message: "Rental request not found" });
+
+        if (rental.listing.ownerId !== req.user.id) {
+            return res.status(403).json({ message: "Not authorized to accept this rental request" });
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.rental.update({
+                where: { id: rental.id },
+                data: { status: "CONFIRMED" },
+            });
+
+            await tx.listing.update({
+                where: { id: rental.listingId },
+                data: { available: false },
+            });
+        });
+        res.json({ message: "Rental request accepted", rental });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

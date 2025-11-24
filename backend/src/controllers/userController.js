@@ -279,3 +279,92 @@ export const acceptRentalRequest = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+export const declineRentalRequest = async (req, res) => {
+    try {
+        const { rentalId } = req.params;
+        const rental = await prisma.rental.findUnique({
+            where: {
+                id: Number(rentalId),
+                status: "PENDING"
+            },
+            include: { listing: true }
+        });
+        if (!rental) return res.status(404).json({ message: "Rental request not found" });
+        if (rental.listing.ownerId !== req.user.id) {
+            return res.status(403).json({ message: "Not authorized to decline this rental request" });
+        }
+        await prisma.rental.update({
+            where: { id: rental.id },
+            data: { status: "DECLINED" },
+        });
+        res.json({ message: "Rental request declined" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const postListingReview = async (req, res) => {
+    try {
+        const listingId = Number(req.params.listingId);
+        const { rating, comment } = req.body;
+
+        const listing = await prisma.listing.findUnique({
+            where: { id: listingId },
+        });
+        if (!listing) return res.status(404).json({ message: "Listing not found" });
+
+        const hasUsedProduct = await prisma.rental.findFirst({
+            where: {
+                listingId: listingId,
+                renterId: req.user.id,
+                status: "CONFIRMED",
+            },
+        });
+
+        if (!hasUsedProduct) {
+            return res.status(400).json({ message: "You can only review listings you have rented" });
+        }
+
+        const review = await prisma.review.create({
+            data: {
+                listingId: listingId,
+                reviewerId: req.user.id,
+                rating: Number(rating),
+                comment,
+            },
+        });
+        res.status(201).json({ message: "Review posted successfully", review });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const deleteReview = async (req, res) => {
+    try {
+        const reviewId = Number(req.params.reviewId);
+        const review = await prisma.review.findUnique({ where: { id: reviewId } });
+
+        if (!review) return res.status(404).json({ message: "Review not found" });
+        if (review.reviewerId !== req.user.id) {
+            return res.status(403).json({ message: "Not authorized to delete this review" });
+        }
+
+        await prisma.review.delete({ where: { id: reviewId } });
+        res.status(204).json({ message: "Review deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const getUserReviewsForListing = async (req, res) => {
+    const listingId = Number(req.params.listingId);
+    try {
+        const reviews = await prisma.review.findMany({
+            where: { listingId: listingId },
+        });
+        res.json(reviews);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}

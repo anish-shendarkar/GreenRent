@@ -3,7 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './src/routes/authRoutes.js';
 import userRoutes from './src/routes/userRoutes/index.js';
-import { PrismaClient } from '@prisma/client';
+import http from 'http';
+import { initSocket } from './src/config/socket.js';
 
 dotenv.config();
 
@@ -15,7 +16,10 @@ app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
 app.use("/uploads", express.static('uploads'));
 
+const server = http.createServer(app);
+initSocket(server);
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

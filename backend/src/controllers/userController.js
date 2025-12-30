@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import path from "path";
 import redis from "../config/redis.js";
+import { getIO } from "../config/socket.js";
 
 const prisma = new PrismaClient();
 
@@ -87,7 +88,12 @@ export const getListingById = async (req, res) => {
         }
         const listing = await prisma.listing.findUnique({
             where: { id: Number(listingId) },
-            include: { media: true },
+            include: {
+                media: true,
+                owner: {
+                    select: { name: true, phone: true, email: true }
+                }
+            },
         });
         if (!listing) return res.status(404).json({ message: "Listing not found" });
         if (!listing.available && listing.availableFrom <= new Date()) {
@@ -366,5 +372,157 @@ export const getUserReviewsForListing = async (req, res) => {
         res.json(reviews);
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+}
+
+export const getOrCreateChat = async (req, res) => {
+    try {
+        const { listingId } = req.params;
+        const renterId = req.user.id;
+
+        const listing = await prisma.listing.findUnique({
+            where: { id: Number(listingId) }
+        });
+
+        if (!listing) {
+            return res.status(404).json({ message: "Listing not found" });
+        }
+
+        let chat = await prisma.chat.findFirst({
+            where: {
+                listingId: Number(listingId),
+                renterId: renterId
+            }
+        });
+
+        if (!chat) {
+            chat = await prisma.chat.create({
+                data: {
+                    listingId: Number(listingId),
+                    renterId,
+                    ownerId: listing.ownerId
+                }
+            });
+        }
+        res.json(chat);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    };
+};
+
+export const getMessages = async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        console.log("chatId:", chatId);
+        const userId = req.user.id;
+
+        // Verify user has access to this chat
+        const chat = await prisma.chat.findFirst({
+            where: {
+                id: Number(chatId),
+                OR: [
+                    { renterId: userId },
+                    { ownerId: userId }
+                ]
+            }
+        });
+
+        if (!chat) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const messages = await prisma.message.findMany({
+            where: { chatId: Number(chatId) },
+            orderBy: { createdAt: "asc" },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        name: true,
+                    }
+                }
+            }
+        });
+
+        const messagesWithMine = messages.map(msg => ({
+            ...msg,
+            isMine: msg.senderId === userId
+        }));
+
+        res.json(messagesWithMine);
+    } catch (error) {
+        console.error("getMessages error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+export const sendMessage = async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const { content } = req.body;
+        const userId = req.user.id;
+
+        if (!content || !content.trim()) {
+            return res.status(400).json({ message: "Content is required" });
+        }
+
+        // Verify user has access to this chat
+        const chat = await prisma.chat.findFirst({
+            where: {
+                id: Number(chatId),
+                OR: [
+                    { renterId: userId },
+                    { ownerId: userId }
+                ]
+            }
+        });
+
+        if (!chat) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const message = await prisma.message.create({
+            data: {
+                chatId: Number(chatId),
+                senderId: userId,
+                content: content.trim()
+            },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        name: true,
+                    }
+                }
+            }
+        });
+
+        const io = getIO();
+        io.to(`chat-${chatId}`).emit("new-message", message);
+
+        res.status(201).json(message);
+    } catch (error) {
+        console.error("sendMessage error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+export const getUserChats = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const chats = await prisma.chat.findMany({
+            where: {
+                OR: [
+                    { renterId: userId },
+                    { ownerId: userId }
+                ]
+            },
+        })
+        res.json(chats);
+    }
+    catch (error) {
+        console.error("getUserChats error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
     }
 }

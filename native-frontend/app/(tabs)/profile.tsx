@@ -49,6 +49,27 @@ const Profile = () => {
     fetchProfile();
   }, []);
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          }
+        }
+      ]
+    );
+  };
+
   // Handle Name Update
   const handleUpdateName = async () => {
     if (!editedName.trim()) {
@@ -113,14 +134,24 @@ const Profile = () => {
     <View className='flex-1 bg-primary'>
       <SafeAreaView className='flex-1'>
         <ScrollView className='flex-1 px-5' showsVerticalScrollIndicator={false} contentContainerStyle={{ minHeight: '100%', paddingBottom: 20 }}>
-          <View className='flex flex-row items-center mt-5'>
-            <Image
-              source={icons.profile}
-              style={{ width: 35, height: 35, tintColor: 'white' }}
-            />
-            <Text className='text-primaryText ml-4 text-2xl font-semibold'>
-              Profile
-            </Text>
+          <View className='flex flex-row items-center justify-between mt-5'>
+            <View className='flex flex-row items-center'>
+              <Image
+                source={icons.profile}
+                style={{ width: 35, height: 35, tintColor: 'white' }}
+              />
+              <Text className='text-primaryText ml-4 text-2xl font-semibold'>
+                Profile
+              </Text>
+            </View>
+            
+            <TouchableOpacity
+              onPress={handleLogout}
+              className='bg-red-500/20 border border-red-500 px-4 py-2 rounded-lg'
+              activeOpacity={0.7}
+            >
+              <Text className='text-red-500 font-semibold'>Logout</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Profile Info */}

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {API_URL} from '../constants/api';
 
 export interface AuthContextType {
     isLoading: boolean;
@@ -26,6 +27,22 @@ export const useAuth = () => {
     }
     return context;
 };
+
+const validateToken = async (token : string): Promise<boolean> => {
+    try {
+        const response = await fetch(`${API_URL}/user/profile`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        return response.ok;
+    } catch (error) {
+        console.error('Error validating token:', error);
+        return false;
+    }
+}
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true);

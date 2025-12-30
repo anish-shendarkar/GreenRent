@@ -6,6 +6,9 @@ interface Listing {
     advancePayment: number;
     available: boolean;
     imageUrl?: string | null;
+    ownerId: number;
+    ownerPhone?: string | null;
+    ownerName?: string | null;
 }
 
 interface ProfileType {
@@ -13,4 +16,13 @@ interface ProfileType {
     email: string;
     phone: string;
     address: string;
+}
+
+interface Rental {
+  id: string;
+  startDate: string;
+  endDate: string;
+  totalPrice: number;
+  status: string;
+  listing: Listing;
 }

@@ -5,6 +5,7 @@ import list from "@/assets/icons/list.png";
 import edit from "@/assets/icons/edit.png";
 import chat from "@/assets/icons/chat.png";
 import logout from "@/assets/icons/logout.png";
+import search from "@/assets/icons/search.png";
 
 export const icons = {
     home,
@@ -14,4 +15,5 @@ export const icons = {
     edit,
     chat,
     logout,
+    search
 }

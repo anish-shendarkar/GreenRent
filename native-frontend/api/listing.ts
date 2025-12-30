@@ -56,3 +56,18 @@ export async function getListingById(listingId: number) {
         throw error;
     }
 }
+
+export async function searchListings(query: string) {
+    const token = await AsyncStorage.getItem("authToken");
+    const res = await fetch(`${API_URL}/user/search/?query=${encodeURIComponent(query)}`, {
+        headers: {
+            "Authorization": `Bearer ${token}`,
+        },
+    });
+    
+    if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+    }
+    
+    return res.json();
+}

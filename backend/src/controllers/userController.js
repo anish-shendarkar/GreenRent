@@ -526,3 +526,25 @@ export const getUserChats = async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 }
+
+export const searchListings = async (req, res) => {
+    try {
+        const { query } = req.query;
+        if (!query || !query.trim()) {
+            return res.status(400).json({ message: "Search query is required" });
+        }
+        const listings = await prisma.listing.findMany({
+            where: {
+                OR: [
+                    { name: { contains: query, mode: 'insensitive' } },
+                    { description: { contains: query, mode: 'insensitive' } }
+                ],
+            },
+            take: 10
+        });
+        res.json(listings);
+    } catch (error) {
+        console.error("searchListings error:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+}
